@@ -20,6 +20,8 @@
     
     <!-- Incluindo o Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para ícones da navbar -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Importando uma fonte mais clássica e elegante do Google Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&display=swap');
@@ -128,15 +130,125 @@
         .notification-button svg {
             margin-right: 8px;
         }
+
+        /* Estilos para a navbar */
+        .navbar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            z-index: 40;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        /* Navbar para desktop - topo */
+        @media (min-width: 768px) {
+            .navbar {
+                top: 0;
+                height: 70px;
+                padding: 0 20px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .navbar-items {
+                display: flex;
+                gap: 30px;
+            }
+            
+            .content-padding-top {
+                padding-top: 100px; /* Compensar o espaço da navbar */
+            }
+        }
+
+        /* Navbar para mobile - base */
+        @media (max-width: 767px) {
+            .navbar {
+                bottom: 0;
+                height: 65px;
+                padding: 0;
+                display: flex;
+                border-top: 1px solid rgba(0,0,0,0.05);
+            }
+            
+            .navbar-items {
+                display: flex;
+                width: 100%;
+                justify-content: space-evenly;
+                align-items: center;
+            }
+            
+            .navbar-item {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                font-size: 0.75rem;
+                padding: 8px 0;
+            }
+            
+            .navbar-item i {
+                font-size: 1.4rem;
+                margin-bottom: 4px;
+            }
+            
+            .content-padding-bottom {
+                padding-bottom: 80px; /* Compensar o espaço da navbar */
+            }
+            
+            /* Barra de indicação ativa para mobile */
+            .navbar-item.text-stone-900::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin: 0 auto;
+                width: 30%;
+                height: 3px;
+                background-color: #78716c;
+                border-radius: 2px;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
     
     <!-- Manifesto para PWA -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
-<body class="bg-stone-100 text-stone-700 flex items-center justify-center min-h-screen p-4">
+<body class="bg-stone-100 text-stone-700 flex items-center justify-center min-h-screen p-4 md:content-padding-top content-padding-bottom">
+    <!-- Navbar para desktop (topo) e mobile (base) -->
+    <nav class="navbar">
+        <div class="navbar-brand md:text-xl font-semibold hidden md:block">
+            Iago & Maria Eduarda
+        </div>
+        <div class="navbar-items">
+            <a href="/" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="/data" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Data</span>
+            </a>
+            <a href="/local" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Local</span>
+            </a>
+            <a href="/presentes" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-gift"></i>
+                <span>Presentes</span>
+            </a>
+        </div>
+    </nav>
+    
     <!-- Botão para instalar PWA -->
-    <button id="btnInstall" class="hidden fixed bottom-4 right-4 bg-stone-200 hover:bg-stone-300 text-stone-700 px-4 py-2 rounded-md shadow-lg z-50">Instalar App</button>
+    <button id="btnInstall" class="hidden fixed md:bottom-4 bottom-16 right-4 bg-stone-200 hover:bg-stone-300 text-stone-700 px-4 py-2 rounded-md shadow-lg z-50">Instalar App</button>
     {% block content %}{% endblock %}
     
     <!-- Script para Service Worker e PWA install prompt -->
@@ -170,5 +282,35 @@
     </script>
     
     {% block scripts %}{% endblock %}
+    
+    <!-- Script para controlar o estado ativo da navbar -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Obtém todos os links da navbar
+            const navLinks = document.querySelectorAll('.navbar-item');
+            
+            // Obtém o caminho atual
+            const currentPath = window.location.pathname;
+            
+            // Marca o link ativo com base no caminho atual
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                
+                // Marca a página inicial apenas se o caminho for exatamente "/"
+                if (href === '/' && currentPath === '/') {
+                    link.classList.add('text-stone-900', 'font-medium');
+                } 
+                // Para outras páginas, verifica se o caminho contém o href (exceto para a página inicial)
+                else if (href !== '/' && currentPath === href) {
+                    link.classList.add('text-stone-900', 'font-medium');
+                }
+                
+                // Adiciona evento de clique para cada link
+                link.addEventListener('click', function(e) {
+                    // O navegador já vai mudar para a página correta, não precisamos fazer nada aqui
+                });
+            });
+        });
+    </script>
 </body>
 </html>

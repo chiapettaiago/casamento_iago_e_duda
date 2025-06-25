@@ -26,6 +26,7 @@ def save_subscriptions(subscriptions):
 if not os.path.exists(SUBSCRIPTIONS_FILE):
     save_subscriptions([])
 
+# Data do casamento - Ajuste conforme necessário
 TARGET_DATE = datetime.datetime(2025, 9, 5, 9, 30, 00)  # Year, Month, Day, Hour, Minute, Second
 
 nomes = ['Iago', 'Maria Eduarda']
@@ -153,6 +154,21 @@ def unsubscribe():
     save_subscriptions(subscriptions)
     
     return jsonify({'success': True})
+
+# Nova rota para a página de data
+@app.route('/data')
+def data_page():
+    return render_template('data.html', data=TARGET_DATE)
+
+# Nova rota para a página de local
+@app.route('/local')
+def local_page():
+    return render_template('local.html')
+
+# Nova rota para a página de presentes
+@app.route('/presentes')
+def presentes_page():
+    return render_template('presentes.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
