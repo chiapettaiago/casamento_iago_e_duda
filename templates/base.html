@@ -156,8 +156,6 @@
         /* Estilos para a navbar */
         .navbar {
             position: fixed;
-            left: 0;
-            right: 0;
             z-index: 40;
             background-color: rgba(252, 248, 250, 0.5); /* Mais translúcido e com um tom rosado suave */
             backdrop-filter: blur(10px) saturate(150%);
@@ -167,24 +165,64 @@
             box-shadow: 0 1px 8px rgba(236, 211, 222, 0.2);
         }
 
-        /* Navbar para desktop - topo */
+        /* Sidebar para desktop - lateral esquerda */
         @media (min-width: 768px) {
             .navbar {
                 top: 0;
-                height: 60px;
-                padding: 0 20px;
+                left: 0;
+                bottom: 0;
+                width: 240px;
+                height: 100vh;
+                padding: 40px 20px;
                 display: flex;
+                flex-direction: column;
                 align-items: center;
-                justify-content: space-between;
+                border-right: 1px solid rgba(255, 255, 255, 0.4);
+            }
+            
+            .navbar-brand {
+                margin-bottom: 40px;
+                text-align: center;
+                font-size: 1.5rem;
+                padding-bottom: 20px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+                width: 100%;
             }
             
             .navbar-items {
                 display: flex;
-                gap: 30px;
+                flex-direction: column;
+                gap: 16px;
+                width: 100%;
             }
             
+            .navbar-item {
+                padding: 12px;
+                width: 100%;
+                text-align: left;
+                border-radius: 8px;
+                transition: background-color 0.2s ease;
+            }
+            
+            .navbar-item:hover {
+                background-color: rgba(255, 255, 255, 0.6);
+            }
+            
+            .navbar-item.text-stone-900 {
+                background-color: rgba(255, 255, 255, 0.8);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+
             body {
-                padding-top: 60px; /* Espaço exato da navbar */
+                padding-left: 240px; /* Espaço para a sidebar */
+                padding-top: 0;
+            }
+            
+            /* Ajustando o container do conteúdo principal para não ser cortado pela sidebar */
+            .main-content {
+                max-width: calc(100% - 240px);
+                margin-left: 240px;
+                width: calc(100% - 240px);
             }
         }
 
@@ -192,10 +230,18 @@
         @media (max-width: 767px) {
             .navbar {
                 bottom: 0;
+                left: 0;
+                right: 0;
                 height: 65px;
                 padding: 0;
                 display: flex;
                 border-top: 1px solid rgba(255, 255, 255, 0.3);
+            }
+            
+            .main-content {
+                width: 100%;
+                margin-left: 0;
+                padding-bottom: 65px;
             }
             
             .navbar-items {
@@ -246,26 +292,26 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
 <body class="text-stone-700 flex items-center justify-center min-h-screen p-4">
-    <!-- Navbar para desktop (topo) e mobile (base) -->
+    <!-- Navbar para desktop (sidebar) e mobile (base) -->
     <nav class="navbar">
         <div class="navbar-brand md:text-xl font-semibold hidden md:block">
             Iago & Maria Eduarda
         </div>
         <div class="navbar-items">
-            <a href="/" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
-                <i class="fas fa-home"></i>
+            <a href="/" class="navbar-item flex md:flex-row flex-col items-center md:justify-start justify-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-home md:w-8"></i>
                 <span>Início</span>
             </a>
-            <a href="/data" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
-                <i class="fas fa-calendar-alt"></i>
+            <a href="/data" class="navbar-item flex md:flex-row flex-col items-center md:justify-start justify-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-calendar-alt md:w-8"></i>
                 <span>Data</span>
             </a>
-            <a href="/local" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
-                <i class="fas fa-map-marker-alt"></i>
+            <a href="/local" class="navbar-item flex md:flex-row flex-col items-center md:justify-start justify-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-map-marker-alt md:w-8"></i>
                 <span>Local</span>
             </a>
-            <a href="/presentes" class="navbar-item flex md:flex-row flex-col items-center gap-2 text-stone-700 hover:text-stone-900">
-                <i class="fas fa-gift"></i>
+            <a href="/presentes" class="navbar-item flex md:flex-row flex-col items-center md:justify-start justify-center gap-2 text-stone-700 hover:text-stone-900">
+                <i class="fas fa-gift md:w-8"></i>
                 <span>Presentes</span>
             </a>
         </div>
@@ -273,7 +319,9 @@
     
     <!-- Botão para instalar PWA -->
     <button id="btnInstall" class="hidden fixed md:bottom-4 bottom-16 right-4 bg-stone-200 hover:bg-stone-300 text-stone-700 px-4 py-2 rounded-md shadow-lg z-50">Instalar App</button>
-    {% block content %}{% endblock %}
+    <div class="main-content w-full transition-all duration-300">
+        {% block content %}{% endblock %}
+    </div>
     
     <!-- Script para Service Worker e PWA install prompt -->
     <script>
