@@ -52,7 +52,8 @@
         // CHAVE PÚBLICA VAPID - Esta chave é apenas para demonstração
         const applicationServerPublicKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
 
-        let isPushEnabled = false;
+        // Verificar se o usuário já tinha ativado notificações anteriormente
+        let isPushEnabled = localStorage.getItem('notificationsEnabled') === 'true';
         
         // Converter a chave pública base64 para UInt8Array
         function urlB64ToUint8Array(base64String) {
@@ -120,11 +121,14 @@
             // Verificar estado da permissão de notificações
             if (Notification.permission === 'denied') {
                 console.warn('O usuário bloqueou as notificações');
+                localStorage.removeItem('notificationsEnabled');
+                isPushEnabled = false;
+                updateNotificationButton();
                 return;
             }
             
-            // Se temos permissão, inscrever o usuário
-            if (Notification.permission === 'granted') {
+            // Se temos permissão e o usuário habilitou anteriormente, reinscrever
+            if (Notification.permission === 'granted' && localStorage.getItem('notificationsEnabled') === 'true') {
                 await subscribeToPush();
             }
         }
@@ -243,10 +247,14 @@
                     // Já está inscrito
                     console.log('Usuário já inscrito para notificações push');
                     isPushEnabled = true;
+                    localStorage.setItem('notificationsEnabled', 'true');
                     updateNotificationButton();
                     
                     // Enviar para o servidor
                     await sendSubscriptionToServer(subscription);
+                    
+                    // Enviar notificação de teste
+                    await sendTestNotification(subscription);
                     return;
                 }
                 
@@ -259,19 +267,46 @@
                 
                 console.log('Inscrito para notificações push:', newSubscription);
                 isPushEnabled = true;
+                localStorage.setItem('notificationsEnabled', 'true');
                 updateNotificationButton();
                 
                 // Enviar a inscrição para o servidor
                 await sendSubscriptionToServer(newSubscription);
                 
-                // Mostrar notificação de confirmação ao usuário
-                new Notification('Notificações ativadas!', {
-                    body: 'Você receberá notificações importantes sobre o casamento.',
-                    icon: '/static/icon.png'
-                });
+                // Enviar notificação de teste
+                await sendTestNotification(newSubscription);
                 
             } catch (error) {
                 console.error('Erro ao inscrever para notificações push:', error);
+            }
+        }
+        
+        // Enviar uma notificação de teste
+        async function sendTestNotification(subscription) {
+            try {
+                const response = await fetch('/api/send-test-notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(subscription)
+                });
+                
+                const data = await response.json();
+                console.log('Notificação de teste enviada:', data);
+                
+            } catch (error) {
+                console.error('Erro ao enviar notificação de teste:', error);
+                
+                // Se falhar o envio pelo servidor, tenta mostrar uma notificação local
+                try {
+                    new Notification('Notificações ativadas!', {
+                        body: 'Você receberá notificações importantes sobre o casamento.',
+                        icon: '/static/icon.png'
+                    });
+                } catch (e) {
+                    console.error('Erro ao mostrar notificação local:', e);
+                }
             }
         }
         
@@ -336,6 +371,7 @@
                     }
                     
                     isPushEnabled = false;
+                    localStorage.removeItem('notificationsEnabled');
                     updateNotificationButton();
                 }
                 

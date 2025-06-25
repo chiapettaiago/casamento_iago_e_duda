@@ -138,6 +138,43 @@ def subscribe():
     
     return jsonify({'success': True})
 
+# Rota para enviar notificação de teste
+@app.route('/api/send-test-notification', methods=['POST'])
+def send_test_notification():
+    from pywebpush import webpush, WebPushException
+    
+    subscription_info = request.json
+    
+    # VAPID keys - Usamos os mesmos do outro arquivo para consistência
+    VAPID_PRIVATE_KEY = "YOUR_VAPID_PRIVATE_KEY"  # Substituir por chave real em produção
+    VAPID_CLAIMS = {
+        "sub": "mailto:iagochiapetta@gmail.com"
+    }
+    
+    try:
+        # Enviar a notificação de teste
+        response = webpush(
+            subscription_info=subscription_info,
+            data=json.dumps({
+                "title": "Notificação ativada!",
+                "body": "Você receberá atualizações sobre o casamento de Iago e Maria Eduarda.",
+                "url": request.url_root
+            }),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Notificação de teste enviada com sucesso!'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 # Rota para cancelar inscrição
 @app.route('/api/unsubscribe', methods=['POST'])
 def unsubscribe():
@@ -171,4 +208,4 @@ def presentes_page():
     return render_template('presentes.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5001)
