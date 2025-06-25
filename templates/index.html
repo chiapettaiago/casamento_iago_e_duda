@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Casamento Iago e Maria Eduarda{% endblock %}
+
+{% block content %}
+    <!-- Notificação -->
+    <div id="notification" class="notification">
+        <span id="notification-message" class="notification-message"></span>
+        <span id="notification-close" class="notification-close">&times;</span>
+    </div>
+    
+    <div class="relative z-10 text-center">
+        <!-- Troque para os nomes de vocês! -->
+        <h1 class="text-4xl md:text-5xl font-bold tracking-wider">{{ nomes[0] }} e {{ nomes[1] }}</h1>
+        <div class="separator"></div>
+        <p class="text-lg md:text-xl text-stone-500 mb-12">Estamos contando os dias para o nosso grande momento.</p>
+
+        <!-- Container da contagem regressiva com estilo minimalista -->
+        <div id="countdown" class="grid grid-cols-4 gap-4 md:gap-10 text-center">
+            <div class="timer-unit">
+                <span id="days" class="timer-number font-bold block text-5xl text-stone-800">00</span>
+                <span class="text-stone-500 tracking-widest uppercase text-sm">Dias</span>
+            </div>
+            <div class="timer-unit">
+                <span id="hours" class="timer-number font-bold block text-5xl text-stone-800">00</span>
+                <span class="text-stone-500 tracking-widest uppercase text-sm">Horas</span>
+            </div>
+            <div class="timer-unit">
+                <span id="minutes" class="timer-number font-bold block text-5xl text-stone-800">00</span>
+                <span class="text-stone-500 tracking-widest uppercase text-sm">Minutos</span>
+            </div>
+            <div class="timer-unit">
+                <span id="seconds" class="timer-number font-bold block text-5xl text-stone-800">00</span>
+                <span class="text-stone-500 tracking-widest uppercase text-sm">Segundos</span>
+            </div>
+        </div>
+        
+        <!-- Mensagem que aparece quando a contagem termina -->
+        <div id="finished-message" class="hidden col-span-4">
+             <h2 class="text-4xl font-bold text-stone-800 mt-8">Enfim, casados!</h2>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <!-- O SCRIPT JAVASCRIPT com sistema de notificações push -->
+    <script>
+        function formatTime(time) {
+            return time < 10 ? `0${time}` : time;
+        }
+        
+        // CHAVE PÚBLICA VAPID - Esta chave é apenas para demonstração
+        const applicationServerPublicKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+
+        let isPushEnabled = false;
+        
+        // Converter a chave pública base64 para UInt8Array
+        function urlB64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+        
+        // Informações sobre o contexto seguro
+        function checkSecurityContext() {
+            const isSecure = window.isSecureContext || 
+                           location.hostname === 'localhost' || 
+                           location.hostname === '127.0.0.1' ||
+                           location.protocol === 'https:';
+            
+            console.log('Contexto seguro:', isSecure);
+            console.log('Protocolo:', location.protocol);
+            console.log('Hostname:', location.hostname);
+            
+            if (!isSecure) {
+                // Adicionar aviso sobre HTTPS
+                const container = document.querySelector('.relative.z-10.text-center');
+                const warning = document.createElement('div');
+                warning.className = 'mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md text-sm';
+                warning.innerHTML = '⚠️ Para notificações push funcionarem em dispositivos móveis, é necessário HTTPS em produção.';
+                container.appendChild(warning);
+            }
+        }
+
+        // Gerencia as notificações push
+        async function initializePushNotifications() {
+            console.log('Inicializando sistema de notificações...');
+            
+            // Verificar contexto de segurança
+            checkSecurityContext();
+            
+            // Sempre adicionar o botão, independente do suporte
+            addNotificationButton();
+            
+            // Verificar se o navegador suporta notificações
+            if (!('Notification' in window)) {
+                console.warn('Notificações não são suportadas neste navegador');
+                return;
+            }
+            
+            if (!('serviceWorker' in navigator)) {
+                console.warn('Service Worker não é suportado neste navegador');
+                return;
+            }
+            
+            if (!('PushManager' in window)) {
+                console.warn('Push Manager não é suportado neste navegador');
+                return;
+            }
+            
+            // Verificar estado da permissão de notificações
+            if (Notification.permission === 'denied') {
+                console.warn('O usuário bloqueou as notificações');
+                return;
+            }
+            
+            // Se temos permissão, inscrever o usuário
+            if (Notification.permission === 'granted') {
+                await subscribeToPush();
+            }
+        }
+        
+        // Adicionar botão para habilitar/desabilitar notificações
+        function addNotificationButton() {
+            console.log('Adicionando botão de notificação...');
+            
+            // Verificar se o botão já existe
+            if (document.getElementById('enable-notifications')) {
+                console.log('Botão já existe');
+                return;
+            }
+            
+            // Criar botão de notificação abaixo da contagem regressiva
+            const container = document.querySelector('.relative.z-10.text-center');
+            if (!container) {
+                console.error('Container não encontrado');
+                return;
+            }
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'mt-10';
+            
+            const notificationButton = document.createElement('button');
+            notificationButton.id = 'enable-notifications';
+            notificationButton.className = 'px-6 py-3 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-md transition duration-300 text-lg shadow-md';
+            notificationButton.innerText = 'Receber notificações';
+            
+            console.log('Botão criado, adicionando event listener...');
+            
+            notificationButton.addEventListener('click', async () => {
+                console.log('Botão clicado!');
+                
+                if (!('Notification' in window)) {
+                    alert('Seu navegador não suporta notificações');
+                    return;
+                }
+                
+                // Verificar se estamos em HTTPS ou localhost
+                const isSecureContext = window.isSecureContext || 
+                                      location.hostname === 'localhost' || 
+                                      location.hostname === '127.0.0.1' ||
+                                      location.protocol === 'https:';
+                
+                if (!isSecureContext) {
+                    alert('Notificações push requerem HTTPS. Para testar em produção, use uma conexão segura.');
+                    return;
+                }
+                
+                if (Notification.permission === 'granted') {
+                    if (isPushEnabled) {
+                        await unsubscribeFromPush();
+                        notificationButton.innerText = 'Receber notificações';
+                        isPushEnabled = false;
+                    } else {
+                        await subscribeToPush();
+                        notificationButton.innerText = 'Desativar notificações';
+                        isPushEnabled = true;
+                    }
+                } else if (Notification.permission === 'denied') {
+                    alert('Notificações foram bloqueadas. Para habilitar:\n\n' +
+                          '1. Clique no ícone de cadeado na barra de endereços\n' +
+                          '2. Altere "Notificações" para "Permitir"\n' +
+                          '3. Recarregue a página\n\n' +
+                          'Ou acesse as configurações do site no navegador.');
+                    return;
+                } else {
+                    console.log('Solicitando permissão...');
+                    
+                    try {
+                        const permission = await Notification.requestPermission();
+                        console.log('Permissão:', permission);
+                        
+                        if (permission === 'granted') {
+                            // Mostrar notificação de teste
+                            new Notification('Notificações ativadas!', {
+                                body: 'Você receberá lembretes sobre o casamento de Iago e Maria Eduarda.',
+                                icon: '/static/icon.png'
+                            });
+                            
+                            await subscribeToPush();
+                            notificationButton.innerText = 'Desativar notificações';
+                            isPushEnabled = true;
+                        } else if (permission === 'denied') {
+                            alert('Permissão negada. As notificações foram bloqueadas permanentemente.\n\n' +
+                                  'Para habilitar no futuro, acesse as configurações do navegador.');
+                        } else {
+                            alert('Permissão não concedida. Tente novamente.');
+                        }
+                    } catch (error) {
+                        console.error('Erro ao solicitar permissão:', error);
+                        alert('Erro ao solicitar permissão para notificações. Verifique se o site está sendo acessado via HTTPS.');
+                    }
+                }
+            });
+            
+            buttonContainer.appendChild(notificationButton);
+            container.appendChild(buttonContainer);
+            
+            console.log('Botão adicionado ao DOM');
+        }
+        
+        // Inscrever o usuário para notificações push
+        async function subscribeToPush() {
+            try {
+                if (!window.swRegistration) {
+                    console.error('Service Worker não registrado');
+                    return;
+                }
+                
+                // Obter a inscrição push atual
+                const subscription = await window.swRegistration.pushManager.getSubscription();
+                
+                if (subscription) {
+                    // Já está inscrito
+                    console.log('Usuário já inscrito para notificações push');
+                    isPushEnabled = true;
+                    updateNotificationButton();
+                    
+                    // Enviar para o servidor
+                    await sendSubscriptionToServer(subscription);
+                    return;
+                }
+                
+                // Inscrever o usuário para notificações push
+                const serverKey = urlB64ToUint8Array(applicationServerPublicKey);
+                const newSubscription = await window.swRegistration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: serverKey
+                });
+                
+                console.log('Inscrito para notificações push:', newSubscription);
+                isPushEnabled = true;
+                updateNotificationButton();
+                
+                // Enviar a inscrição para o servidor
+                await sendSubscriptionToServer(newSubscription);
+                
+                // Mostrar notificação de confirmação ao usuário
+                new Notification('Notificações ativadas!', {
+                    body: 'Você receberá notificações importantes sobre o casamento.',
+                    icon: '/static/icon.png'
+                });
+                
+            } catch (error) {
+                console.error('Erro ao inscrever para notificações push:', error);
+            }
+        }
+        
+        // Atualizar o texto do botão de notificações
+        function updateNotificationButton() {
+            const button = document.getElementById('enable-notifications');
+            if (button) {
+                button.innerText = isPushEnabled ? 'Desativar notificações' : 'Receber notificações';
+            }
+        }
+        
+        // Enviar a inscrição para o servidor
+        async function sendSubscriptionToServer(subscription) {
+            try {
+                const response = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(subscription)
+                });
+                
+                const data = await response.json();
+                console.log('Inscrição enviada para o servidor:', data);
+                
+            } catch (error) {
+                console.error('Erro ao enviar inscrição para o servidor:', error);
+            }
+        }
+        
+        // Cancelar a inscrição de notificações push
+        async function unsubscribeFromPush() {
+            try {
+                if (!window.swRegistration) {
+                    console.error('Service Worker não registrado');
+                    return;
+                }
+                
+                const subscription = await window.swRegistration.pushManager.getSubscription();
+                
+                if (!subscription) {
+                    console.log('Usuário não está inscrito para notificações push');
+                    return;
+                }
+                
+                // Cancelar a inscrição
+                const unsubscribed = await subscription.unsubscribe();
+                if (unsubscribed) {
+                    console.log('Cancelada inscrição de notificações push');
+                    
+                    // Notificar o servidor
+                    try {
+                        await fetch('/api/unsubscribe', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(subscription)
+                        });
+                    } catch (error) {
+                        console.error('Erro ao notificar servidor sobre cancelamento:', error);
+                    }
+                    
+                    isPushEnabled = false;
+                    updateNotificationButton();
+                }
+                
+            } catch (error) {
+                console.error('Erro ao cancelar inscrição push:', error);
+            }
+        }
+
+        // Gerencia o sistema de notificações na página
+        let currentNotification = null;
+        let notificationShown = false;
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            const notificationClose = document.getElementById('notification-close');
+
+            // Configurar a mensagem
+            notificationMessage.textContent = message;
+            
+            // Mostrar a notificação
+            notification.classList.add('show');
+            notificationShown = true;
+
+            // Configurar o botão de fechar
+            notificationClose.addEventListener('click', () => {
+                notification.classList.remove('show');
+                // Salvar na localStorage que esta notificação foi fechada
+                if (currentNotification) {
+                    localStorage.setItem(`notification_${currentNotification.dias}`, 'dismissed');
+                }
+            });
+        }
+
+        // Inicializar sistema de notificações quando o DOM estiver pronto e imediatamente
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM carregado, inicializando notificações...');
+            initializePushNotifications();
+        });
+        
+        // Tentar inicializar imediatamente também
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializePushNotifications);
+        } else {
+            initializePushNotifications();
+        }
+
+        async function updateCountdown() {
+            try {
+                // A requisição agora aponta para a porta 5001
+                const response = await fetch(`${window.location.origin}/api/route`);
+                const data = await response.json();
+
+                if (data.total_seconds <= 0) {
+                    // Esconde a contagem e mostra a mensagem final
+                    document.getElementById('countdown').classList.add('hidden');
+                    document.getElementById('finished-message').classList.remove('hidden');
+                    clearInterval(countdownInterval);
+                    return;
+                }
+                
+                document.getElementById('days').innerText = formatTime(data.days);
+                document.getElementById('hours').innerText = formatTime(data.hours);
+                document.getElementById('minutes').innerText = formatTime(data.minutes);
+                document.getElementById('seconds').innerText = formatTime(data.seconds);
+
+                // Verificar se há uma nova notificação para mostrar
+                if (data.notificacao && !notificationShown) {
+                    const notificationKey = `notification_${data.notificacao.dias}`;
+                    const isDismissed = localStorage.getItem(notificationKey) === 'dismissed';
+                    
+                    // Mostrar a notificação se não foi descartada anteriormente
+                    if (!isDismissed) {
+                        currentNotification = data.notificacao;
+                        showNotification(data.notificacao.mensagem);
+                    }
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar o tempo:", error);
+                clearInterval(countdownInterval);
+            }
+        }
+
+        const countdownInterval = setInterval(updateCountdown, 1000);
+        updateCountdown();
+
+        // Habilitar para limpar todas as notificações descartadas (útil para testes)
+        // localStorage.clear();
+    </script>
+{% endblock %}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#f5f5f4">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Casamento Iago e Duda">
+    <meta name="description" content="Contagem regressiva para o casamento de Iago e Maria Eduarda">
+
+    <title>{% block title %}Casamento Iago e Maria Eduarda{% endblock %}</title>
+    
+    <!-- Ícones para dispositivos Apple -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-icon-180.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='apple-splash-2048-2732.png') }}" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    
+    <!-- Ícone para favoritos -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    
+    <!-- Incluindo o Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Importando uma fonte mais clássica e elegante do Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none; /* Evita o efeito de "pull-to-refresh" */
+        }
+
+        /* Estilo customizado para o separador */
+        .separator {
+            width: 80px;
+            height: 2px;
+            background-color: #d1d5db; /* gray-300 */
+            margin: 20px auto;
+        }
+        
+        /* Estilos específicos para dispositivos móveis */
+        @media (max-width: 640px) {
+            .timer-number {
+                font-size: 2.5rem; /* 40px */
+            }
+            
+            .timer-unit span:last-child {
+                font-size: 0.75rem; /* 12px */
+            }
+        }
+        
+        /* Ajustando o tamanho dos números para telas maiores */
+        @media (min-width: 768px) {
+            .timer-number {
+                font-size: 5rem; /* 80px */
+            }
+        }
+
+        /* Estilos para o sistema de notificações */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(243, 244, 246, 0.95);
+            border-left: 4px solid #a8a29e;
+            padding: 16px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            max-width: 90%;
+            width: 500px;
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .notification.show {
+            opacity: 1;
+            visibility: visible;
+            animation: float 0.5s ease-out;
+        }
+
+        .notification-message {
+            font-size: 1.1rem;
+            color: #44403c;
+            padding-right: 20px; /* Espaço para o botão de fechar */
+        }
+
+        .notification-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #78716c;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+        }
+
+        /* Melhoria para notificações em dispositivos móveis */
+        @media (max-width: 640px) {
+            .notification {
+                width: 92%;
+                padding: 14px 16px;
+                top: 10px;
+            }
+            
+            .notification-message {
+                font-size: 1rem;
+            }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(-20px) translateX(-50%); opacity: 0; }
+            100% { transform: translateY(0) translateX(-50%); opacity: 1; }
+        }
+        
+        /* Estilo para botão de notificação */
+        .notification-button {
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .notification-button svg {
+            margin-right: 8px;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+    
+    <!-- Manifesto para PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+</head>
+<body class="bg-stone-100 text-stone-700 flex items-center justify-center min-h-screen p-4">
+    <!-- Botão para instalar PWA -->
+    <button id="btnInstall" class="hidden fixed bottom-4 right-4 bg-stone-200 hover:bg-stone-300 text-stone-700 px-4 py-2 rounded-md shadow-lg z-50">Instalar App</button>
+    {% block content %}{% endblock %}
+    
+    <!-- Script para Service Worker e PWA install prompt -->
+    <script>
+        // Registro do Service Worker com escopo raiz
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(registration => console.log('Service Worker registrado:', registration))
+            .catch(err => console.error('Erro ao registrar SW:', err));
+        }
+
+        // Prompt de instalação do PWA
+        let deferredPrompt;
+        const btnInstall = document.getElementById('btnInstall');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstall.classList.remove('hidden');
+        });
+
+        btnInstall.addEventListener('click', async () => {
+            btnInstall.classList.add('hidden');
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log('Resultado do prompt de instalação:', outcome);
+                deferredPrompt = null;
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
